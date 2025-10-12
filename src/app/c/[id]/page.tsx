@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import LikeButtonApi from "@/components/LikeButtonApi";
 export const runtime = "nodejs";
 
-export default async function CandidatePage({ params }: { params: { id: string } }) {
+export default async function CandidatePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClientServer();
-  const { id } = params;
+  const { id } = await params;
   const { data: candidate } = await supabase
     .from("candidates")
     .select("id, user_id, headline, location, about, skills, visibility, cv_path")
@@ -29,16 +29,6 @@ export default async function CandidatePage({ params }: { params: { id: string }
   }
 
   const candidateId = candidate?.id ?? null;
-  async function likeCandidate() {
-    "use server";
-    const supabase = await createClientServer();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !candidateId) return;
-    await supabase
-      .from("candidate_likes")
-      .upsert({ candidate_id: candidateId, user_id: user.id }, { onConflict: "candidate_id,user_id", ignoreDuplicates: true })
-      .select();
-  }
 
   let initialLiked = false;
   if (user) {

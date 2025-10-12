@@ -15,7 +15,7 @@ export default function LikeButtonApi({ liked, candidateId }: { liked: boolean; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId }),
       });
-    } catch (_) {
+    } catch {
       // No-op: keep optimistic state; backend upsert is idempotent
     }
   }
