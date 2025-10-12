@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
+import { AuthButtons } from "@/components/AuthButtons";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +29,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <header className="border-b">
+          <div className="max-w-4xl mx-auto flex items-center justify-between px-4 py-3">
+            <Link href="/" className="font-semibold">HireMeMaybe</Link>
+            <nav className="flex items-center gap-3">
+              <Link href="/search" className="underline-offset-4 hover:underline">Search</Link>
+              <Link href="/dashboard/profile" className="underline-offset-4 hover:underline">Create Profile</Link>
+            </nav>
+            <AuthButtons />
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          {children}
+        </main>
       </body>
     </html>
   );
