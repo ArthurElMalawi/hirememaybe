@@ -10,11 +10,17 @@ export default function LikeButtonApi({ liked, candidateId }: { liked: boolean; 
     if (optimisticLiked) return;
     setOptimisticLiked(true);
     try {
-      await fetch("/api/like", {
+      const res = await fetch("/api/like", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ candidateId }),
       });
+      if (res.status === 401) {
+        // Revert optimistic state if user is not authenticated
+        setOptimisticLiked(false);
+        // Minimal UX hint; replace with a toast if available
+        alert("Connectez-vous pour liker ce profil.");
+      }
     } catch {
       // No-op: keep optimistic state; backend upsert is idempotent
     }

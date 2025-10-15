@@ -1,4 +1,4 @@
-import { createClientServer } from "@/lib/supabase/server";
+import { createClientAction } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export default async function ProfilePage() {
   async function saveProfile(formData: FormData) {
     "use server";
-    const supabase = await createClientServer();
+    const supabase = await createClientAction();
     const {
       data: { user },
     } = await supabase.auth.getUser();

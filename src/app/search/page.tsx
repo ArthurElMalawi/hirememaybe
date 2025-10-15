@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 type SearchParams = { q?: string; skills?: string };
 
@@ -42,7 +43,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
               {(c.skills || []).slice(0, 6).map((s: string) => (
                 <Badge key={s} variant="secondary">{s}</Badge>
               ))}
-              <a href={`/c/${c.id}`} className="ml-auto underline text-sm">View profile</a>
+              <Link href={`/c/${c.id}`} className="ml-auto underline text-sm">View profile</Link>
             </CardContent>
           </Card>
         ))}

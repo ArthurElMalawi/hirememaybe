@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClientServer } from "@/lib/supabase/server";
+import { createClientAction } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "candidateId is required" }, { status: 400 });
     }
 
-    const supabase = await createClientServer();
+    const supabase = await createClientAction();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

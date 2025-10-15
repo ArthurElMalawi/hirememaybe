@@ -1,7 +1,10 @@
-import { createClientServer } from "@/lib/supabase/server";
+import { createClientServer, createClientAction } from "@/lib/supabase/server";
+import ViewTracker from "./ViewTracker";
 import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Button } from "@/components/ui/button";
 import LikeButtonApi from "@/components/LikeButtonApi";
+import { toggleFavorite as toggleFavoriteServer } from "@/app/actions/toggle-favorite";
 export const runtime = "nodejs";
 
 export default async function CandidatePage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +25,7 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
   const cvPath = candidate?.cv_path ?? null;
   async function getCv() {
     "use server";
-    const supabase = await createClientServer();
+    const supabase = await createClientAction();
     if (!cvPath) return;
     const { data } = await supabase.storage.from("cvs").createSignedUrl(cvPath, 60);
     if (data?.signedUrl) redirect(data.signedUrl);
@@ -46,8 +49,28 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
     .select("id", { count: "exact", head: true })
     .eq("candidate_id", candidate.id);
 
+  // Initial favorite state
+  let initialFavorited = false;
+  if (user && candidateId) {
+    const { data: favRow } = await supabase
+      .from("favorites")
+      .select("id")
+      .eq("candidate_id", candidateId)
+      .eq("user_id", user.id)
+      .limit(1);
+    initialFavorited = (favRow || []).length > 0;
+  }
+
+  async function toggleFavorite() {
+    "use server";
+    if (!candidateId) return;
+    await toggleFavoriteServer(candidateId);
+    revalidatePath(`/c/${candidateId}`);
+  }
+
   return (
     <div className="space-y-6">
+      {candidateId && <ViewTracker candidateId={candidateId} />}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold">{candidate.headline}</h1>
@@ -66,6 +89,13 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
       <div className="flex items-center gap-3">
         {candidateId && <LikeButtonApi liked={initialLiked} candidateId={candidateId} />}
         <span className="text-sm text-muted-foreground">{likesCount || 0} likes</span>
+        {candidateId && (
+          <form action={toggleFavorite}>
+            <Button type="submit" variant="secondary">
+              {initialFavorited ? "Remove favorite" : "Add to favorites"}
+            </Button>
+          </form>
+        )}
       </div>
     </div>
   );
