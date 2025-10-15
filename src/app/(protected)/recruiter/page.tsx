@@ -1,13 +1,24 @@
 import { createClientServer } from "@/lib/supabase/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import FavoriteList from "@/components/recruiter/FavoriteList";
-import { toggleFavorite } from "@/app/actions/toggle-favorite";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import RecruiterTabs from "@/components/recruiter/RecruiterTabs";
+import { ToasterProvider } from "@/components/ui/toaster";
 
 export const runtime = "nodejs";
 
-type Candidate = { id: string; headline: string | null; location: string | null; skills: string[]; likes_count: number };
-type FavoriteItem = { added_at: string; candidate: Candidate };
+
+type FavoriteDetailed = {
+  candidate_id: string;
+  headline: string | null;
+  about: string | null;
+  location: string | null;
+  skills: string[];
+  likes_count: number;
+  added_at: string;
+  note?: string | null;
+};
 
 export default async function RecruiterPage() {
   const supabase = await createClientServer();
@@ -16,11 +27,19 @@ export default async function RecruiterPage() {
     redirect("/");
   }
 
-  const { data, error } = await supabase
-    .from("favorites")
-    .select("created_at, candidate:candidate_id(id, headline, location, skills, likes_count)")
+  const { data: recruiterRow } = await supabase
+    .from("recruiters")
+    .select("company")
     .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .maybeSingle();
+  const hasCompany = Boolean((recruiterRow as Record<string, unknown> | null)?.["company"] || "");
+
+  const { data, error } = await supabase
+    .from("v_favorites_detailed")
+    .select("user_id, candidate_id, headline, about, location, skills, likes_count, added_at, note")
+    .eq("user_id", user.id)
+    .order("added_at", { ascending: false })
+    .limit(300);
 
   if (error) {
     return (
@@ -34,36 +53,38 @@ export default async function RecruiterPage() {
     );
   }
 
-  const favorites: FavoriteItem[] = (data || [])
-    .map((row: Record<string, unknown>) => {
-      const cand = row["candidate"] as Candidate | Candidate[] | undefined;
-      const candidateObj: Candidate | undefined = Array.isArray(cand) ? cand[0] : cand;
-      const id = String((candidateObj as Record<string, unknown> | undefined)?.["id"] ?? "");
-      return {
-        added_at: String(row["created_at"] ?? ""),
-        candidate: {
-          id,
-          headline: (candidateObj as Record<string, unknown> | undefined)?.["headline"] as string | null ?? null,
-          location: (candidateObj as Record<string, unknown> | undefined)?.["location"] as string | null ?? null,
-          skills: Array.isArray((candidateObj as Record<string, unknown> | undefined)?.["skills"]) ? ((candidateObj as Record<string, unknown>)?.["skills"] as string[]) : [],
-          likes_count: Number((candidateObj as Record<string, unknown> | undefined)?.["likes_count"] ?? 0),
-        },
-      } as FavoriteItem;
-    })
-    .filter((f) => f.candidate.id.length > 0);
-
-  async function removeFavorite(candidateId: string) {
-    "use server";
-    await toggleFavorite(candidateId);
-  }
+  const favorites: FavoriteDetailed[] = (data || [])
+    .map((row: Record<string, unknown>) => ({
+      candidate_id: String(row["candidate_id"] ?? ""),
+      headline: (row["headline"] as string | null) ?? null,
+      about: (row["about"] as string | null) ?? null,
+      location: (row["location"] as string | null) ?? null,
+      skills: Array.isArray(row["skills"]) ? (row["skills"] as string[]) : [],
+      likes_count: Number(row["likes_count"] ?? 0),
+      added_at: String(row["added_at"] ?? ""),
+      note: (row["note"] as string | null) ?? null,
+    }))
+    .filter((f) => f.candidate_id.length > 0);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Vos favoris</h1>
-        <Link href="/search" className="underline text-sm">Voir les candidats</Link>
+        <h1 className="text-xl font-semibold">Espace recruteur</h1>
+        <Link href="/search" prefetch={false} className="underline text-sm">Voir les candidats</Link>
       </div>
-      <FavoriteList favorites={favorites} removeAction={removeFavorite} />
+
+      {!hasCompany && (
+        <Card className="border-yellow-300 bg-yellow-50 p-4">
+          <div className="flex items-center gap-2">
+            <Badge>Profil incomplet</Badge>
+            <span className="text-sm">Ajoutez votre entreprise dans votre profil recruteur pour débloquer toutes les fonctionnalités.</span>
+          </div>
+        </Card>
+      )}
+
+      <ToasterProvider>
+        <RecruiterTabs initialFavorites={favorites} />
+      </ToasterProvider>
     </div>
   );
 }

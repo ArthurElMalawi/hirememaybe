@@ -1,6 +1,6 @@
-import { createAdminClient } from "@/lib/supabase/admin";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { ModerateButtons } from "./ModerateButtons";
+import { createClientServer } from "@/lib/supabase/server";
+import AdminReportsTable from "./AdminReportsTable";
+import { ToasterProvider } from "@/components/ui/toaster";
 
 export const runtime = "nodejs";
 
@@ -14,33 +14,39 @@ export default async function AdminPage() {
     );
   }
 
-  const admin = createAdminClient();
-  const { data: reports } = await admin
-    .from("reports")
-    .select("id, status, reason, candidate_id, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  // Guard: ensure current user is admin
+  const supa = await createClientServer();
+  const { data: { user } } = await supa.auth.getUser();
+  if (!user) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-xl font-semibold">Admin</h1>
+        <p className="text-sm text-muted-foreground">Vous devez être authentifié.</p>
+      </div>
+    );
+  }
+
+  const { data: me } = await supa
+    .from("users_public")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (me?.role !== "admin") {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-xl font-semibold">Admin</h1>
+        <p className="text-sm text-muted-foreground">Accès refusé (rôle requis: admin).</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Moderation queue</h1>
-      <div className="grid gap-4 md:grid-cols-2">
-        {(reports || []).map((r) => (
-          <Card key={r.id}>
-            <CardHeader>
-              <CardTitle>Candidate {r.candidate_id}</CardTitle>
-              <CardDescription>Created {new Date(r.created_at).toLocaleString()}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {r.reason && <p className="text-sm whitespace-pre-wrap">{r.reason}</p>}
-              <ModerateButtons reportId={r.id} initialStatus={r.status} />
-            </CardContent>
-          </Card>
-        ))}
-        {(reports || []).length === 0 && (
-          <div className="text-sm text-muted-foreground">No reports.</div>
-        )}
-      </div>
+      <ToasterProvider>
+        <AdminReportsTable />
+      </ToasterProvider>
     </div>
   );
 }
